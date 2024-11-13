@@ -1,6 +1,7 @@
 import os
 import sys
 import os.path
+from asyncio import current_task
 from decimal import Decimal
 from typing import Optional, List
 
@@ -23,7 +24,7 @@ from grrmsv import utils
 import config
 
 
-__VERSION__ = '1.2 on 2024/11/09'
+__VERSION__ = '1.3 on 2024/11/13'
 
 
 class MyFileDropTarget(wx.FileDropTarget):
@@ -270,8 +271,12 @@ class GRRMSingleViewerApp(wx.App):
         self.text_ctrl_opt_optimized_energy1: wx.TextCtrl = xrc.XRCCTRL(self.frame, 'text_ctrl_opt_optimized_energy1')
         self.text_ctrl_opt_optimized_energy2: wx.TextCtrl = xrc.XRCCTRL(self.frame, 'text_ctrl_opt_optimized_energy2')
         self.text_ctrl_opt_optimized_spin2: wx.TextCtrl = xrc.XRCCTRL(self.frame, 'text_ctrl_opt_optimized_spin2')
-        self.button_opt_view_optimized: wx.Button= xrc.XRCCTRL(self.frame, 'button_opt_view_optimized')
+        self.button_opt_view_optimized: wx.Button = xrc.XRCCTRL(self.frame, 'button_opt_view_optimized')
         self.button_opt_text_optimized: wx.Button = xrc.XRCCTRL(self.frame, 'button_opt_text_optimized')
+        self.text_ctrl_truncated_path_start: wx.TextCtrl = xrc.XRCCTRL(self.frame, 'text_ctrl_truncated_path_start')
+        self.text_ctrl_truncated_path_end: wx.TextCtrl = xrc.XRCCTRL(self.frame, 'text_ctrl_truncated_path_end')
+        self.button_save_truncated_path: wx.Button = xrc.XRCCTRL(self.frame, 'button_save_truncated_path')
+        self.checkbox_save_truncated_path_include_frozen_atom: wx.CheckBox = xrc.XRCCTRL(self.frame, 'checkbox_save_truncated_path_include_frozen_atom')
 
         # controls for freq
         self.button_freq_view: wx.Button = xrc.XRCCTRL(self.frame, 'button_freq_view')
@@ -441,6 +446,7 @@ class GRRMSingleViewerApp(wx.App):
         self.button_opt_view_optimized.Bind(wx.EVT_BUTTON, self.on_button_opt_view_optimized)
         self.button_opt_text_optimized.Bind(wx.EVT_BUTTON, self.on_button_opt_text_optimized)
         self.grid_opt.Bind(wx.EVT_KEY_DOWN, self.on_key_down_grid_opt)
+        self.button_save_truncated_path.Bind(wx.EVT_BUTTON, self.on_button_save_truncated_path)
 
         # FREQ
         self.button_freq_view.Bind(wx.EVT_BUTTON, self.on_button_freq_view)
@@ -484,12 +490,12 @@ class GRRMSingleViewerApp(wx.App):
 
     def set_menu(self):
         # set menu and event
-        file_menu = wx.Menu()
-        open = file_menu.Append(11, '&Open\tCtrl+O')
-        self.Bind(wx.EVT_MENU, self.on_menu_open, open)
+        menu_file = wx.Menu()
+        menu_item_open = menu_file.Append(11, '&Open\tCtrl+O')
+        self.Bind(wx.EVT_MENU, self.on_menu_open, menu_item_open)
         # set menu bar
         menu_bar = wx.MenuBar()
-        menu_bar.Append(file_menu, '&File')
+        menu_bar.Append(menu_file, '&File')
         self.frame.SetMenuBar(menu_bar)
 
     # For reset (make empty) controls
@@ -1196,6 +1202,36 @@ class GRRMSingleViewerApp(wx.App):
         title = 'Optimized Structure'
         text = job.optimized_structure.get_string()
         self.show_text_frame(title=title, text=text)
+
+    def on_button_save_truncated_path(self, event):
+        job = self.current_opt
+        if job is None:
+            return
+        try:
+            start = int(self.text_ctrl_truncated_path_start.GetValue())
+            end = int(self.text_ctrl_truncated_path_end.GetValue())
+            assert start >= 0
+            assert end < len(job.structure_list)
+        except:
+            self.logging('Invalid start/end iteration index.')
+            return
+        include_frozen_atom = self.checkbox_save_truncated_path_include_frozen_atom.IsChecked()
+
+        # Get save file name
+        dialog = wx.FileDialog(None, 'save file name',
+                               wildcard='GRRM log (*.log)|*.log|All files (*.*)|*.*',
+                               style=wx.FD_SAVE)
+        # Save in the same directory of log file
+        current_dir = os.path.dirname(self.job.log_file)
+        if current_dir:
+            dialog.SetDirectory(current_dir)
+        if dialog.ShowModal() == wx.ID_OK:
+            file = dialog.GetPath()
+            dialog.Destroy()
+        else:
+            dialog.Destroy()
+            return
+        job.save_truncated_path(file=file, start_iter=start, end_iter=end, include_frozen_atom=include_frozen_atom)
 
     def on_key_down_grid_opt(self, event):
         if event.ControlDown() and event.GetKeyCode() == 67:
