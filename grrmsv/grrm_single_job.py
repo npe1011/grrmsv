@@ -57,8 +57,7 @@ class GRRMSingleJob:
                 continue
             if current_type == '':
                 current_type = line_type
-                current_block_buffer = []
-                current_block_buffer.append(line)
+                current_block_buffer = [line]
                 continue
             if current_type == line_type:
                 current_block_buffer.append(line)

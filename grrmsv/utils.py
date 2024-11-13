@@ -121,6 +121,9 @@ def calc_limit_for_plot(value_list: List[Union[float, Decimal]]) -> Tuple[float,
     """
     min_v = float(min(value_list))
     max_v = float(max(value_list))
+    # Avoid causing warnings when max = min
+    if min_v == max_v:
+        return min_v - 0.00001, max_v + 0.00001
     buff = (max_v - min_v) * 0.05
     min_v = min_v - buff
     max_v = max_v + buff

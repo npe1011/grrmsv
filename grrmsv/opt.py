@@ -1,4 +1,7 @@
 import copy
+from codecs import strict_errors
+from turtledemo.penrose import start
+
 import matplotlib.pyplot as plt
 from decimal import Decimal
 from typing import List, Optional
@@ -154,13 +157,21 @@ class OPTJob:
             self.maximum_displacement_conv_list.append(self.maximum_displacement_list[i] <= self.maximum_displacement_th_list[i])
             self.rms_displacement_conv_list.append(self.rms_displacement_list[i] <= self.rms_displacement_th_list[i])
 
-    def save_xyz(self, file):
+    def save_xyz(self, file: str):
         with open(file, 'w') as f:
             for s in self.structure_list:
-                s: Structure
                 f.write(str(s.num_atom + s.num_frozen_atom) + '\n')
                 f.write(s.name + '\n')
                 f.write(s.get_string(include_frozen_atoms=True))
+
+    def save_truncated_path(self, file: str, start_iter: int, end_iter:int, include_frozen_atom: bool):
+        if start_iter < 0 or end_iter >= len(self.structure_list):
+            raise ValueError('Invalid start/end iteration number.')
+        with open(file, 'w') as f:
+            for i in range(start_iter, end_iter+1):
+                f.write('# NODE {:d}\n'.format(i))
+                f.write(self.structure_list[i].get_string(include_frozen_atoms=include_frozen_atom))
+            f.write('\n')
 
     def show_plot(self):
 
